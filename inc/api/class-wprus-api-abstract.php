@@ -1349,6 +1349,7 @@ abstract class Wprus_Api_Abstract
 			'/[^\S ]+\</s',
 			'/(\s)+/s',
 			'/<!--(.|\s)*?-->/',
+			/// 因为在 redirect-processing.php 中有 <script> 标签，所以这里需要将 </script> 替换为 <\/script>
 			'/<\/script>/',
 		);
 		$replace = array(
@@ -1356,14 +1357,12 @@ abstract class Wprus_Api_Abstract
 			'<',
 			'\\1',
 			'',
+			/// 因为在 redirect-processing.php 中有 <script> 标签，所以这里需要将 </script> 替换为 <\/script>
 			'<\/script>',
 		);
 		$output  = preg_replace($search, $replace, $output);
 
 		ob_start();
-
-		error_log("hello");
-		error_log($output);
 
 		wprus_get_template(
 			'redirect-processing-script.php',

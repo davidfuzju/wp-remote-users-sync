@@ -102,7 +102,7 @@
 				}
 				messageElement.textContent = text;
 				dots = (dots + 1) % 4;
-			}, 1000);
+			}, 500);
 		});
 	</script>
 </body>
