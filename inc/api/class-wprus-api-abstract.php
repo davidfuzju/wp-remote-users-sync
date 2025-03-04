@@ -1349,12 +1349,14 @@ abstract class Wprus_Api_Abstract
 			'/[^\S ]+\</s',
 			'/(\s)+/s',
 			'/<!--(.|\s)*?-->/',
+			'/<\/script>/',
 		);
 		$replace = array(
 			'>',
 			'<',
 			'\\1',
 			'',
+			'<\/script>',
 		);
 		$output  = preg_replace($search, $replace, $output);
 
