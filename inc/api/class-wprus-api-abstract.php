@@ -1,10 +1,11 @@
 <?php
 
-if ( ! defined( 'ABSPATH' ) ) {
+if (! defined('ABSPATH')) {
 	exit; // Exit if accessed directly
 }
 
-abstract class Wprus_Api_Abstract {
+abstract class Wprus_Api_Abstract
+{
 	const TOKEN_EXPIRY_BUFFER = MINUTE_IN_SECONDS / 2;
 
 	/**
@@ -107,7 +108,8 @@ abstract class Wprus_Api_Abstract {
 	 * @param Wprus_Settings|mixed $settings The settings object.
 	 * @param bool $init_hooks Whether to add WordPress action and filter hooks on object creation ; default `false`.
 	 */
-	public function __construct( $endpoint, $settings, $init_hooks = false ) {
+	public function __construct($endpoint, $settings, $init_hooks = false)
+	{
 		$this->endpoint            = $endpoint;
 		$this->settings            = $settings;
 		$this->doing_remote_action = self::is_doing_remote_action();
@@ -116,31 +118,31 @@ abstract class Wprus_Api_Abstract {
 		$this->init();
 		$this->init_data();
 
-		if ( $init_hooks ) {
+		if ($init_hooks) {
 
-			if ( $this->doing_remote_action ) {
-				add_action( 'init', array( $this, 'init_remote_hooks_authorization' ), PHP_INT_MIN + 100, 0 );
-				add_action( 'init', array( $this, 'init_remote_hooks' ), PHP_INT_MIN + 100, 0 );
+			if ($this->doing_remote_action) {
+				add_action('init', array($this, 'init_remote_hooks_authorization'), PHP_INT_MIN + 100, 0);
+				add_action('init', array($this, 'init_remote_hooks'), PHP_INT_MIN + 100, 0);
 			} else {
-				add_action( 'init', array( $this, 'init_local_hooks' ), PHP_INT_MIN + 100, 0 );
+				add_action('init', array($this, 'init_local_hooks'), PHP_INT_MIN + 100, 0);
 				add_action(
 					'wp_ajax_wprus_' . $endpoint . '_notify_ping_remote',
-					array( $this, 'notify_ping_remote' ),
+					array($this, 'notify_ping_remote'),
 					10,
 					0
 				);
 
-				if ( $this->has_async_actions() ) {
+				if ($this->has_async_actions()) {
 
-					if ( ! has_action( 'init', array( $this, 'set_pending_async_actions_user_id' ) ) ) {
-						add_action( 'init', array( $this, 'set_pending_async_actions_user_id' ), PHP_INT_MIN + 100, 0 );
+					if (! has_action('init', array($this, 'set_pending_async_actions_user_id'))) {
+						add_action('init', array($this, 'set_pending_async_actions_user_id'), PHP_INT_MIN + 100, 0);
 					}
 
-					add_action( 'init', array( $this, 'init_async_hooks' ), PHP_INT_MIN + 100, 0 );
+					add_action('init', array($this, 'init_async_hooks'), PHP_INT_MIN + 100, 0);
 				}
 			}
 
-			add_filter( 'wprus_wp_endpoints', array( $this, 'add_action_endpoints' ), 10, 1 );
+			add_filter('wprus_wp_endpoints', array($this, 'add_action_endpoints'), 10, 1);
 		}
 	}
 
@@ -153,8 +155,9 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return bool whether the current request comes from a remote site
 	 */
-	public static function is_doing_remote_action() {
-		return strpos( $_SERVER['REQUEST_URI'], '/wprus/' ) !== false;
+	public static function is_doing_remote_action()
+	{
+		return strpos($_SERVER['REQUEST_URI'], '/wprus/') !== false;
 	}
 
 	/**
@@ -163,9 +166,10 @@ abstract class Wprus_Api_Abstract {
 	 * @param mixed $data The data to encrypt.
 	 * @return string the encrypted bundle
 	 */
-	public function encrypt_data( $data ) {
+	public function encrypt_data($data)
+	{
 		$bundle = Wprus_Crypto::encrypt(
-			wp_json_encode( $data, JSON_UNESCAPED_UNICODE ),
+			wp_json_encode($data, JSON_UNESCAPED_UNICODE),
 			self::$encryption_settings['aes_key'],
 			self::$encryption_settings['hmac_key']
 		);
@@ -179,7 +183,8 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $bundle The bundle to decrypt.
 	 * @return mixed The decrypted data
 	 */
-	public function decrypt_data( $bundle ) {
+	public function decrypt_data($bundle)
+	{
 		$data    = false;
 		$payload = false;
 
@@ -189,14 +194,14 @@ abstract class Wprus_Api_Abstract {
 				self::$encryption_settings['aes_key'],
 				self::$encryption_settings['hmac_key']
 			);
-		} catch ( Exception $e ) {
-			Wprus_Logger::log( 'Could not decrypt data: ' . $e->getMessage(), 'alert', 'db_log' );
+		} catch (Exception $e) {
+			Wprus_Logger::log('Could not decrypt data: ' . $e->getMessage(), 'alert', 'db_log');
 		}
 
-		if ( $payload ) {
-			$data = json_decode( $payload, true );
+		if ($payload) {
+			$data = json_decode($payload, true);
 		} else {
-			Wprus_Logger::log( __( 'Could not decrypt data: invalid bundle.', 'wprus' ) );
+			Wprus_Logger::log(__('Could not decrypt data: invalid bundle.', 'wprus'));
 		}
 
 		return $data;
@@ -206,26 +211,27 @@ abstract class Wprus_Api_Abstract {
 	 * Initialise the current API endpoint with its configuration
 	 *
 	 */
-	public function init() {
-		self::$settings_class = get_class( $this->settings );
+	public function init()
+	{
+		self::$settings_class = get_class($this->settings);
 
-		if ( ! isset( self::$encryption_settings ) ) {
-			self::$encryption_settings = self::$settings_class::get_option( 'encryption' );
+		if (! isset(self::$encryption_settings)) {
+			self::$encryption_settings = self::$settings_class::get_option('encryption');
 		}
 
-		if ( ! isset( self::$browser_support_settings ) ) {
-			self::$browser_support_settings = self::$settings_class::get_option( 'browser_support' );
+		if (! isset(self::$browser_support_settings)) {
+			self::$browser_support_settings = self::$settings_class::get_option('browser_support');
 		}
 
-		if ( ! isset( self::$ip_whitelist ) ) {
-			$ip_whitelist = self::$settings_class::get_option( 'ip_whitelist' );
+		if (! isset(self::$ip_whitelist)) {
+			$ip_whitelist = self::$settings_class::get_option('ip_whitelist');
 
-			if ( ! empty( $ip_whitelist ) ) {
-				$ip_whitelist       = array_filter( array_map( 'trim', explode( "\n", $ip_whitelist ) ) );
+			if (! empty($ip_whitelist)) {
+				$ip_whitelist       = array_filter(array_map('trim', explode("\n", $ip_whitelist)));
 				self::$ip_whitelist = array_map(
-					function ( $ip ) {
+					function ($ip) {
 
-						return preg_match( '/\//', $ip ) ? $ip : $ip . '/32';
+						return preg_match('/\//', $ip) ? $ip : $ip . '/32';
 					},
 					$ip_whitelist
 				);
@@ -240,46 +246,48 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return $result whether the operation was successful
 	 */
-	public function handle_notification() {
+	public function handle_notification()
+	{
 		return null;
 	}
 
 	/**
 	 * Initialize the hooks to trigger when the action is triggered
 	 */
-	public function init_notification_hooks() { }
+	public function init_notification_hooks() {}
 
 	/**
 	 * Handle request for security tokens and reply with JSON data
 	 *
 	 */
-	public function handle_token_request() {
+	public function handle_token_request()
+	{
 		$data       = $this->get_data_post();
 		$token_info = false;
 
-		if ( $data && isset( $data['method'] ) ) {
-			$token_info = Wprus_Nonce::create_nonce( true );
+		if ($data && isset($data['method'])) {
+			$token_info = Wprus_Nonce::create_nonce(true);
 		}
 
-		if ( $token_info ) {
-			$action_label   = isset( $data['action'] ) ? $data['action'] : __( 'Token', 'wprus' );
+		if ($token_info) {
+			$action_label   = isset($data['action']) ? $data['action'] : __('Token', 'wprus');
 			$settings_class = self::$settings_class;
-			$class_vars     = get_class_vars( $settings_class );
+			$class_vars     = get_class_vars($settings_class);
 
-			if ( isset( $class_vars['actions'][ $action_label ] ) ) {
-				$action_label = $class_vars['actions'][ $action_label ];
+			if (isset($class_vars['actions'][$action_label])) {
+				$action_label = $class_vars['actions'][$action_label];
 			}
 
 			Wprus_Logger::log(
 				// translators: %1$s is the remote site ; %2$s is the action
-				sprintf( __( 'Token created: site %1$s - action "%2$s"', 'wprus' ), $data['base_url'], $action_label ),
+				sprintf(__('Token created: site %1$s - action "%2$s"', 'wprus'), $data['base_url'], $action_label),
 				'info',
 				'db_log'
 			);
-			wp_send_json( $token_info );
+			wp_send_json($token_info);
 		}
 
-		Wprus_Logger::log( __( 'Failed to create token - invalid payload', 'wprus' ), 'alert', 'db_log' );
+		Wprus_Logger::log(__('Failed to create token - invalid payload', 'wprus'), 'alert', 'db_log');
 
 		exit();
 	}
@@ -288,31 +296,34 @@ abstract class Wprus_Api_Abstract {
 	 * Inititialise WordPress action hooks to process remote sites requests
 	 *
 	 */
-	public function init_remote_hooks() {
+	public function init_remote_hooks()
+	{
 		$data = $this->get_data();
 
-		if ( isset( $data['ping'] ) ) {
-			add_action( 'wprus_api_' . $this->endpoint, array( $this, 'handle_ping_notification' ), 10, 0 );
+		if (isset($data['ping'])) {
+			add_action('wprus_api_' . $this->endpoint, array($this, 'handle_ping_notification'), 10, 0);
 		} else {
-			add_action( 'wprus_api_' . $this->endpoint, array( $this, 'handle_request' ), 10, 0 );
+			add_action('wprus_api_' . $this->endpoint, array($this, 'handle_request'), 10, 0);
 		}
 
-		add_action( 'wprus_api_token', array( $this, 'handle_token_request' ), 10, 0 );
+		add_action('wprus_api_token', array($this, 'handle_token_request'), 10, 0);
 	}
 
 	/**
 	 * Inititialise WordPress action hooks to authorise remote sites requests
 	 *
 	 */
-	public function init_remote_hooks_authorization() {
-		add_action( 'wprus_api_' . $this->endpoint, array( $this, 'authorize_notification' ), 5, 0 );
+	public function init_remote_hooks_authorization()
+	{
+		add_action('wprus_api_' . $this->endpoint, array($this, 'authorize_notification'), 5, 0);
 	}
 
 	/**
 	 * Inititialise the endpoint's role handler object
 	 *
 	 */
-	public function init_role_handler( $role_api ) {
+	public function init_role_handler($role_api)
+	{
 		$this->role_handler = $role_api;
 	}
 
@@ -320,7 +331,8 @@ abstract class Wprus_Api_Abstract {
 	 * Inititialise the endpoint's password handler object
 	 *
 	 */
-	public function init_password_handler( $password_api ) {
+	public function init_password_handler($password_api)
+	{
 		$this->password_handler = $password_api;
 	}
 
@@ -328,59 +340,61 @@ abstract class Wprus_Api_Abstract {
 	 * Process a remote site request
 	 *
 	 */
-	public function handle_request() {
+	public function handle_request()
+	{
 		$data = $this->get_data();
 
-		if ( method_exists( $this, 'handle_notification' ) ) {
-			do_action( 'wprus_before_handle_action_notification', $this->endpoint, $data );
+		if (method_exists($this, 'handle_notification')) {
+			do_action('wprus_before_handle_action_notification', $this->endpoint, $data);
 
 			$result = $this->handle_notification();
 
-			do_action( 'wprus_after_handle_action_notification', $this->endpoint, $data, $result );
+			do_action('wprus_after_handle_action_notification', $this->endpoint, $data, $result);
 
-			if ( $this->needs_redirect() ) {
-				$url = isset( $data['callback_url'] ) ? $data['callback_url'] : home_url();
+			if ($this->needs_redirect()) {
+				$url = isset($data['callback_url']) ? $data['callback_url'] : home_url();
 
-				wp_redirect( $url, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+				wp_redirect($url, 303); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 
 				exit();
 			}
 		}
 
-		add_filter( 'wprus_api_needs_redirect', array( $this, 'needs_redirect' ), 10, 0 );
+		add_filter('wprus_api_needs_redirect', array($this, 'needs_redirect'), 10, 0);
 	}
 
 	/**
 	 * Authorise or deny a remote site request
 	 *
 	 */
-	public function authorize_notification() {
+	public function authorize_notification()
+	{
 		$token_filter         = FILTER_UNSAFE_RAW;
-		$token                = filter_input( INPUT_GET, 'token', $token_filter );
-		$token                = ( ! $token ) ? filter_input( INPUT_POST, 'token', $token_filter ) : $token;
+		$token                = filter_input(INPUT_GET, 'token', $token_filter);
+		$token                = (! $token) ? filter_input(INPUT_POST, 'token', $token_filter) : $token;
 		$is_authorized_remote = false;
 		$origin               = false;
 		$remote_data          = $this->get_data();
 
-		if ( isset( $remote_data['base_url'] ) ) {
+		if (isset($remote_data['base_url'])) {
 			$origin = $remote_data['base_url'];
 		}
 
-		if ( 'get' === $this->method ) {
-			Wprus_Nonce::init( true, false, self::$encryption_settings['token_expiry'] );
+		if ('get' === $this->method) {
+			Wprus_Nonce::init(true, false, self::$encryption_settings['token_expiry']);
 		}
 
-		if ( ! Wprus_Nonce::validate_nonce( $token ) ) {
-			$message = __( 'Unauthorized access (invalid token)', 'wprus' );
+		if (! Wprus_Nonce::validate_nonce($token)) {
+			$message = __('Unauthorized access (invalid token)', 'wprus');
 		} else {
 
-			if ( 'get' === $this->method ) {
+			if ('get' === $this->method) {
 				$is_authorized_remote = true;
-			} elseif ( 'post' === $this->method ) {
+			} elseif ('post' === $this->method) {
 
-				if ( self::$ip_whitelist ) {
-					foreach ( self::$ip_whitelist as $range ) {
-						if ( $this->cidr_match( $_SERVER['REMOTE_ADDR'], $range ) ) {
+				if (self::$ip_whitelist) {
+					foreach (self::$ip_whitelist as $range) {
+						if ($this->cidr_match($_SERVER['REMOTE_ADDR'], $range)) {
 							$is_authorized_remote = true;
 							break;
 						}
@@ -398,37 +412,37 @@ abstract class Wprus_Api_Abstract {
 				self::$ip_whitelist
 			);
 
-			if ( $is_authorized_remote ) {
-				$message = __( 'Access granted', 'wprus' );
-			} elseif ( 'post' === $this->method && self::$ip_whitelist ) {
+			if ($is_authorized_remote) {
+				$message = __('Access granted', 'wprus');
+			} elseif ('post' === $this->method && self::$ip_whitelist) {
 				// translators: %s is the remote IP address
-				$message = sprintf( __( 'Unauthorized access (invalid remote IP address %s)', 'wprus' ), $_SERVER['REMOTE_ADDR'] );
+				$message = sprintf(__('Unauthorized access (invalid remote IP address %s)', 'wprus'), $_SERVER['REMOTE_ADDR']);
 			} else {
-				$message = __( 'Unauthorized access (invalid method)', 'wprus' );
+				$message = __('Unauthorized access (invalid method)', 'wprus');
 			}
 		}
 
-		if ( 'get' === $this->method ) {
-			Wprus_Nonce::init( false, false, self::$encryption_settings['token_expiry'] );
+		if ('get' === $this->method) {
+			Wprus_Nonce::init(false, false, self::$encryption_settings['token_expiry']);
 		}
 
-		$message                   .= ( $origin ) ? ' - ' . $origin : '';
-		$log_type                   = ( $is_authorized_remote ) ? 'success' : 'alert';
+		$message                   .= ($origin) ? ' - ' . $origin : '';
+		$log_type                   = ($is_authorized_remote) ? 'success' : 'alert';
 		$this->is_authorized_remote = $is_authorized_remote;
 
-		Wprus_Logger::log( $message, $log_type, 'db_log' );
+		Wprus_Logger::log($message, $log_type, 'db_log');
 
-		if ( ! $is_authorized_remote ) {
-			do_action( 'wprus_unauthorized_access', $this->endpoint, $remote_data, $token, $this );
+		if (! $is_authorized_remote) {
+			do_action('wprus_unauthorized_access', $this->endpoint, $remote_data, $token, $this);
 
-			if ( isset( $remote_data['ping'] ) ) {
-				$message = __( 'The remote website encountered the following error: ', 'wprus' ) . $message;
+			if (isset($remote_data['ping'])) {
+				$message = __('The remote website encountered the following error: ', 'wprus') . $message;
 
-				wp_send_json_error( $message );
-			} elseif ( $this->needs_redirect() ) {
-				$url = isset( $remote_data['callback_url'] ) ? $remote_data['callback_url'] : home_url();
+				wp_send_json_error($message);
+			} elseif ($this->needs_redirect()) {
+				$url = isset($remote_data['callback_url']) ? $remote_data['callback_url'] : home_url();
 
-				wp_redirect( $url, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+				wp_redirect($url, 303); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 
 				exit();
 			} else {
@@ -437,27 +451,28 @@ abstract class Wprus_Api_Abstract {
 			}
 		}
 
-		do_action( 'wprus_authorized_access', $this->endpoint, $remote_data, $token, $this );
+		do_action('wprus_authorized_access', $this->endpoint, $remote_data, $token, $this);
 	}
 
 	/**
 	 * Inititialise WordPress action hooks to send requests to remote sites
 	 *
 	 */
-	public function init_local_hooks() {
-		$init_notification_hooks = apply_filters( 'wprus_init_notification_hooks', true );
+	public function init_local_hooks()
+	{
+		$init_notification_hooks = apply_filters('wprus_init_notification_hooks', true);
 
-		if ( ! $init_notification_hooks ) {
+		if (! $init_notification_hooks) {
 
 			return;
 		}
 
-		if ( method_exists( $this, 'init_notification_hooks' ) ) {
-			do_action( 'wprus_before_init_notification_hooks', $this->endpoint, $this );
+		if (method_exists($this, 'init_notification_hooks')) {
+			do_action('wprus_before_init_notification_hooks', $this->endpoint, $this);
 
 			$this->init_notification_hooks();
 
-			do_action( 'wprus_after_init_notification_hooks', $this->endpoint, $this );
+			do_action('wprus_after_init_notification_hooks', $this->endpoint, $this);
 		}
 	}
 
@@ -465,20 +480,21 @@ abstract class Wprus_Api_Abstract {
 	 * Inititialise WordPress action hooks used to process redirected async actions
 	 *
 	 */
-	public function init_async_redirect_hooks() {
+	public function init_async_redirect_hooks()
+	{
 
-		if ( ! $this->is_silent_async_action_redirect() ) {
+		if (! $this->is_silent_async_action_redirect()) {
 
-			if ( ! has_action( 'wp_head', array( $this, 'fire_async_actions' ) ) ) {
-				add_action( 'wp_head', array( $this, 'fire_async_actions' ), PHP_INT_MIN + 100, 0 );
+			if (! has_action('wp_head', array($this, 'fire_async_actions'))) {
+				add_action('wp_head', array($this, 'fire_async_actions'), PHP_INT_MIN + 100, 0);
 			}
 
-			if ( ! has_action( 'admin_head', array( $this, 'fire_async_actions' ) ) ) {
-				add_action( 'admin_head', array( $this, 'fire_async_actions' ), PHP_INT_MIN + 100, 0 );
+			if (! has_action('admin_head', array($this, 'fire_async_actions'))) {
+				add_action('admin_head', array($this, 'fire_async_actions'), PHP_INT_MIN + 100, 0);
 			}
 
-			if ( ! has_action( 'login_head', array( $this, 'fire_async_actions' ) ) ) {
-				add_action( 'login_head', array( $this, 'fire_async_actions' ), PHP_INT_MIN + 100, 0 );
+			if (! has_action('login_head', array($this, 'fire_async_actions'))) {
+				add_action('login_head', array($this, 'fire_async_actions'), PHP_INT_MIN + 100, 0);
 			}
 		} else {
 			$this->init_silent_async_redirect_hooks();
@@ -489,33 +505,34 @@ abstract class Wprus_Api_Abstract {
 	 * Inititialise WordPress action hooks used to process async actions
 	 *
 	 */
-	public function init_async_hooks() {
-		$init_notification_hooks = apply_filters( 'wprus_init_notification_hooks', true );
+	public function init_async_hooks()
+	{
+		$init_notification_hooks = apply_filters('wprus_init_notification_hooks', true);
 
-		if ( ! $init_notification_hooks ) {
+		if (! $init_notification_hooks) {
 
 			return;
 		}
 
-		if ( ! $this->needs_redirect() ) {
+		if (! $this->needs_redirect()) {
 
-			if ( ! has_action( 'wp_footer', array( $this, 'fire_async_actions' ) ) ) {
-				add_action( 'wp_footer', array( $this, 'fire_async_actions' ), PHP_INT_MIN + 100, 0 );
+			if (! has_action('wp_footer', array($this, 'fire_async_actions'))) {
+				add_action('wp_footer', array($this, 'fire_async_actions'), PHP_INT_MIN + 100, 0);
 			}
 
-			if ( ! has_action( 'admin_footer', array( $this, 'fire_async_actions' ) ) ) {
-				add_action( 'admin_footer', array( $this, 'fire_async_actions' ), PHP_INT_MIN + 100, 0 );
+			if (! has_action('admin_footer', array($this, 'fire_async_actions'))) {
+				add_action('admin_footer', array($this, 'fire_async_actions'), PHP_INT_MIN + 100, 0);
 			}
 
-			if ( ! has_action( 'login_footer', array( $this, 'fire_async_actions' ) ) ) {
-				add_action( 'login_footer', array( $this, 'fire_async_actions' ), PHP_INT_MIN + 100, 0 );
+			if (! has_action('login_footer', array($this, 'fire_async_actions'))) {
+				add_action('login_footer', array($this, 'fire_async_actions'), PHP_INT_MIN + 100, 0);
 			}
 		} else {
 			$this->init_async_redirect_hooks();
 		}
 
-		if ( ! has_action( 'shutdown', array( $this, 'save_async_actions' ) ) ) {
-			add_action( 'shutdown', array( $this, 'save_async_actions' ), 10, 0 );
+		if (! has_action('shutdown', array($this, 'save_async_actions'))) {
+			add_action('shutdown', array($this, 'save_async_actions'), 10, 0);
 		}
 	}
 
@@ -530,7 +547,8 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return bool whether the endpoint can handle async actions
 	 */
-	public function has_async_actions() {
+	public function has_async_actions()
+	{
 		return false;
 	}
 
@@ -539,7 +557,8 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return bool wether the endpoint needs to redirect the current page
 	 */
-	public function needs_redirect() {
+	public function needs_redirect()
+	{
 		return false;
 	}
 
@@ -548,7 +567,8 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return bool wether the endpoint redirections need to be silent or output content
 	 */
-	public function is_silent_async_action_redirect() {
+	public function is_silent_async_action_redirect()
+	{
 		return false;
 	}
 
@@ -556,13 +576,14 @@ abstract class Wprus_Api_Abstract {
 	 * Inititialise data received from remote sites
 	 *
 	 */
-	public function init_data() {
-		$data_get     = filter_input( INPUT_GET, 'wprusdata', FILTER_UNSAFE_RAW );
-		$data_post    = filter_input( INPUT_POST, 'wprusdata', FILTER_UNSAFE_RAW );
-		$this->method = ( $data_post ) ? 'post' : 'get';
+	public function init_data()
+	{
+		$data_get     = filter_input(INPUT_GET, 'wprusdata', FILTER_UNSAFE_RAW);
+		$data_post    = filter_input(INPUT_POST, 'wprusdata', FILTER_UNSAFE_RAW);
+		$this->method = ($data_post) ? 'post' : 'get';
 		$this->data   = array(
-			'get'  => ( $data_get ) ? $this->decrypt_data( $data_get ) : null,
-			'post' => ( $data_post ) ? $this->decrypt_data( $data_post ) : null,
+			'get'  => ($data_get) ? $this->decrypt_data($data_get) : null,
+			'post' => ($data_post) ? $this->decrypt_data($data_post) : null,
 		);
 	}
 
@@ -572,7 +593,8 @@ abstract class Wprus_Api_Abstract {
 	 * @param array $endpoints The list of endpoints
 	 * @return array The list of endpoints
 	 */
-	public function add_action_endpoints( $endpoints ) {
+	public function add_action_endpoints($endpoints)
+	{
 		$endpoints = array_merge(
 			$endpoints,
 			$this->get_endpoints()
@@ -589,9 +611,10 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $direction The direction for which the endpoint is active - 'incoming' or 'outgoing' ; 'incoming by default'
 	 * @return array|bool The site information ; `false` if no corresponding site information
 	 */
-	public function get_active_site_for_action( $endpoint, $site_url = false, $direction = 'incoming' ) {
-		$site_url = ( $site_url ) ? $site_url : get_option( 'home' );
-		$site     = $this->settings->get_site( $site_url, $endpoint, $direction );
+	public function get_active_site_for_action($endpoint, $site_url = false, $direction = 'incoming')
+	{
+		$site_url = ($site_url) ? $site_url : get_option('home');
+		$site     = $this->settings->get_site($site_url, $endpoint, $direction);
 
 		return $site;
 	}
@@ -600,42 +623,43 @@ abstract class Wprus_Api_Abstract {
 	 * Handle requests for test pings and reply with JSON data
 	 *
 	 */
-	public function handle_ping_notification() {
+	public function handle_ping_notification()
+	{
 		$data = $this->get_data_post();
 
-		if ( empty( $data ) ) {
-			Wprus_Logger::log( __( 'A ping was received but the initiator did not use matching encryption and signature action keys', 'wprus' ), 'info', 'db_log' );
-			wp_send_json_error( __( 'Mismatch Encryption settings - please make sure the action keys are correctly configured on both sites.', 'wprus' ) );
+		if (empty($data)) {
+			Wprus_Logger::log(__('A ping was received but the initiator did not use matching encryption and signature action keys', 'wprus'), 'info', 'db_log');
+			wp_send_json_error(__('Mismatch Encryption settings - please make sure the action keys are correctly configured on both sites.', 'wprus'));
 		}
 
 		if (
-			empty( $data['base_url'] ) ||
-			empty( $data['direction'] ) ||
+			empty($data['base_url']) ||
+			empty($data['direction']) ||
 			(
 				'incoming' !== $data['direction'] &&
 				'outgoing' !== $data['direction']
 			)
 		) {
-			Wprus_Logger::log( __( 'A ping was received but the initiator did not send the proper data.', 'wprus' ), 'info', 'db_log' );
-			wp_send_json_error( __( 'Malformed data - the test request was received but the data could not be extracted.', 'wprus' ) );
+			Wprus_Logger::log(__('A ping was received but the initiator did not send the proper data.', 'wprus'), 'info', 'db_log');
+			wp_send_json_error(__('Malformed data - the test request was received but the data could not be extracted.', 'wprus'));
 		}
 
-		$site            = $this->get_active_site_for_action( $this->endpoint, $data['base_url'], $data['direction'] );
+		$site            = $this->get_active_site_for_action($this->endpoint, $data['base_url'], $data['direction']);
 		$action_label    = $this->endpoint;
-		$direction_label = ( 'incoming' === $data['direction'] ) ? __( 'incoming', 'wprus' ) : __( 'outgoing', 'wprus' );
+		$direction_label = ('incoming' === $data['direction']) ? __('incoming', 'wprus') : __('outgoing', 'wprus');
 		$remote_addr     = $_SERVER['REMOTE_ADDR'];
 		$settings_class  = self::$settings_class;
-		$class_vars      = get_class_vars( $settings_class );
+		$class_vars      = get_class_vars($settings_class);
 
-		if ( isset( $class_vars['actions'][ $action_label ] ) ) {
-			$action_label = $class_vars['actions'][ $action_label ];
+		if (isset($class_vars['actions'][$action_label])) {
+			$action_label = $class_vars['actions'][$action_label];
 		}
 
-		if ( $site ) {
-			do_action( 'wprus_ping_success', $this->endpoint, $data, $remote_addr );
+		if ($site) {
+			do_action('wprus_ping_success', $this->endpoint, $data, $remote_addr);
 
 			// translators: %1$s is the sync action name, %2$s is the remote site URL, %3$s is the remote IP, %4$s is the direction
-			$message = __( 'Ping received for activated action "%1$s" from %2$s with remote IP %3$s (%4$s)', 'wprus' );
+			$message = __('Ping received for activated action "%1$s" from %2$s with remote IP %3$s (%4$s)', 'wprus');
 
 			Wprus_Logger::log(
 				sprintf(
@@ -650,23 +674,23 @@ abstract class Wprus_Api_Abstract {
 			);
 
 			// translators: %1$s is the sync action name, %2$s is the current site URL, %3$s is the remote IP, %4$s is the direction
-			$message = __( 'Ping success for action "%1$s" from %2$s with remote IP %3$s (%4$s)', 'wprus' );
+			$message = __('Ping success for action "%1$s" from %2$s with remote IP %3$s (%4$s)', 'wprus');
 
 			wp_send_json_success(
 				sprintf(
 					$message,
 					$action_label,
-					get_option( 'home' ),
+					get_option('home'),
 					$remote_addr,
 					$direction_label
 				)
 			);
 		}
 
-		do_action( 'wprus_ping_failure', $this->endpoint, $data, $remote_addr );
+		do_action('wprus_ping_failure', $this->endpoint, $data, $remote_addr);
 
 		// translators: %1$s is the sync action name, %2$s is the remote site URL, %3$s is the remote IP, %4$s is the direction
-		$message = __( 'Ping received for deactivated action "%1$s" from %2$s with remote IP %3$s (%4$s)', 'wprus' );
+		$message = __('Ping received for deactivated action "%1$s" from %2$s with remote IP %3$s (%4$s)', 'wprus');
 
 		Wprus_Logger::log(
 			sprintf(
@@ -681,41 +705,42 @@ abstract class Wprus_Api_Abstract {
 		);
 
 		// translators: %1$s is the sync action name, %2$s is the current site URL, %3$s is the remote IP, %4$s is the direction
-		$message = __( '"%1$s" action is not activated on %2$s with remote IP %3$s (%4$s).', 'wprus' );
+		$message = __('"%1$s" action is not activated on %2$s with remote IP %3$s (%4$s).', 'wprus');
 		$message = sprintf(
 			$message,
 			$action_label,
-			get_option( 'home' ),
+			get_option('home'),
 			$remote_addr,
 			$direction_label
 		);
 
-		wp_send_json_error( $message );
+		wp_send_json_error($message);
 	}
 
 	/**
 	 * Send a test ping request to a remote website and send the response to the user interface
 	 *
 	 */
-	public function notify_ping_remote() {
-		$nonce = filter_input( INPUT_POST, 'nonce', FILTER_UNSAFE_RAW );
+	public function notify_ping_remote()
+	{
+		$nonce = filter_input(INPUT_POST, 'nonce', FILTER_UNSAFE_RAW);
 
-		if ( ! wp_verify_nonce( $nonce, 'wprus_ping_nonce' ) ) {
-			wp_send_json_error( __( 'Error: unauthorized access - please reload the page and try again.', 'wprus' ) );
+		if (! wp_verify_nonce($nonce, 'wprus_ping_nonce')) {
+			wp_send_json_error(__('Error: unauthorized access - please reload the page and try again.', 'wprus'));
 		}
 
-		$url          = filter_input( INPUT_POST, 'site_url', FILTER_VALIDATE_URL );
-		$direction    = filter_input( INPUT_POST, 'direction', FILTER_UNSAFE_RAW );
-		$data         = filter_input( INPUT_POST, 'data', FILTER_UNSAFE_RAW, FILTER_REQUIRE_ARRAY );
+		$url          = filter_input(INPUT_POST, 'site_url', FILTER_VALIDATE_URL);
+		$direction    = filter_input(INPUT_POST, 'direction', FILTER_UNSAFE_RAW);
+		$data         = filter_input(INPUT_POST, 'data', FILTER_UNSAFE_RAW, FILTER_REQUIRE_ARRAY);
 		$success      = false;
 		$payload      = false;
 		$default_data = array(
 			'ping'      => 1,
-			'direction' => ( 'incoming' === $direction ) ? 'outgoing' : 'incoming',
+			'direction' => ('incoming' === $direction) ? 'outgoing' : 'incoming',
 		);
 
-		if ( $data ) {
-			$data = array_merge( $default_data, $data );
+		if ($data) {
+			$data = array_merge($default_data, $data);
 		} else {
 			$data = $default_data;
 		}
@@ -727,17 +752,17 @@ abstract class Wprus_Api_Abstract {
 			5
 		);
 
-		do_action( 'wprus_ping_fired', $this->endpoint, $data, $response );
+		do_action('wprus_ping_fired', $this->endpoint, $data, $response);
 
-		if ( 200 === absint( $response['response_code'] ) ) {
-			$data = json_decode( $response['body'], true );
+		if (200 === absint($response['response_code'])) {
+			$data = json_decode($response['body'], true);
 
-			if ( JSON_ERROR_NONE !== json_last_error() ) {
-				$payload  = __( 'Error contacting the remote site: ', 'wprus' );
-				$payload .= __( 'Payload error - ' ) . json_last_error_msg();
+			if (JSON_ERROR_NONE !== json_last_error()) {
+				$payload  = __('Error contacting the remote site: ', 'wprus');
+				$payload .= __('Payload error - ') . json_last_error_msg();
 			} else {
 
-				if ( $data['success'] ) {
+				if ($data['success']) {
 					$success = true;
 				}
 
@@ -745,34 +770,34 @@ abstract class Wprus_Api_Abstract {
 			}
 		}
 
-		if ( ! $success && ! $payload ) {
-			$payload = __( 'Error contacting the remote site: ', 'wprus' );
+		if (! $success && ! $payload) {
+			$payload = __('Error contacting the remote site: ', 'wprus');
 
 			if (
-				! empty( $response['response_code'] ) &&
+				! empty($response['response_code']) &&
 				200 !== $response['response_code'] &&
-				! empty( $response['response_message'] )
+				! empty($response['response_message'])
 			) {
 				$payload .= $response['response_code'] . ' - ' . $response['response_message'];
 			} else {
 				// translators: %s is the error code
-				$payload .= ( ! empty( $response['response_code'] ) ) ? sprintf( __( ' - code: %s - ', 'wprus' ), $response['response_code'] ) : '';
-				$payload .= __( 'an undefined error occured. Please make sure the address is correct and try again.', 'wprus' );
+				$payload .= (! empty($response['response_code'])) ? sprintf(__(' - code: %s - ', 'wprus'), $response['response_code']) : '';
+				$payload .= __('an undefined error occured. Please make sure the address is correct and try again.', 'wprus');
 				$payload .= "\n";
-				$payload .= __( 'On the remote site, please make sure the plugin is activated and that the permalinks are up to date by visiting the permalinks settings page.', 'wprus' );
+				$payload .= __('On the remote site, please make sure the plugin is activated and that the permalinks are up to date by visiting the permalinks settings page.', 'wprus');
 			}
 
-			if ( 404 === absint( $response['response_code'] ) ) {
+			if (404 === absint($response['response_code'])) {
 				$payload .= "\n";
-				$payload .= __( 'On the remote site, please make sure the permalinks are not using the "Plain" option.', 'wprus' );
+				$payload .= __('On the remote site, please make sure the permalinks are not using the "Plain" option.', 'wprus');
 			}
 		}
 
-		$log_type = ( $success ) ? 'success' : 'alert';
+		$log_type = ($success) ? 'success' : 'alert';
 
-		Wprus_Logger::log( $payload, $log_type, 'db_log' );
+		Wprus_Logger::log($payload, $log_type, 'db_log');
 
-		if ( ! $success ) {
+		if (! $success) {
 			Wprus_Logger::log(
 				array(
 					'message' => 'Response data received from the remote site: ',
@@ -783,25 +808,26 @@ abstract class Wprus_Api_Abstract {
 			);
 		}
 
-		if ( $success ) {
-			wp_send_json_success( $payload );
+		if ($success) {
+			wp_send_json_success($payload);
 		}
 
-		wp_send_json_error( $payload );
+		wp_send_json_error($payload);
 	}
 
 	/**
 	 * Persist the user ID used to save and fire async actions.
 	 *
 	 */
-	public function set_pending_async_actions_user_id() {
+	public function set_pending_async_actions_user_id()
+	{
 
-		if ( 0 !== get_current_user_id() ) {
+		if (0 !== get_current_user_id()) {
 			$this->async_user_id = get_current_user_id();
 
 			$this->setcookie(
 				'wprus_user_pending_async_actions',
-				bin2hex( $this->encrypt_data( get_current_user_id() ) )
+				bin2hex($this->encrypt_data(get_current_user_id()))
 			);
 		}
 	}
@@ -810,8 +836,9 @@ abstract class Wprus_Api_Abstract {
 	 * Add async action to the list of async actions to add to the footer
 	 *
 	 */
-	public function add_async_action( $url, $data ) {
-		$data['base_url'] = get_option( 'home' );
+	public function add_async_action($url, $data)
+	{
+		$data['base_url'] = get_option('home');
 		$data['url']      = $url;
 
 		$this->async_actions[] = $data;
@@ -821,9 +848,10 @@ abstract class Wprus_Api_Abstract {
 	 * Persist the list of async actions to add to the footer
 	 *
 	 */
-	public function save_async_actions() {
+	public function save_async_actions()
+	{
 
-		if ( ! empty( $this->async_actions ) && $this->async_user_id ) {
+		if (! empty($this->async_actions) && $this->async_user_id) {
 			update_user_meta(
 				$this->async_user_id,
 				'wprus_' . $this->endpoint . '_pending_async_actions',
@@ -836,41 +864,42 @@ abstract class Wprus_Api_Abstract {
 	 * Fire the async actions
 	 *
 	 */
-	public function fire_async_actions() {
-		$location_headers = preg_grep( '/^Location:/i', headers_list() );
+	public function fire_async_actions()
+	{
+		$location_headers = preg_grep('/^Location:/i', headers_list());
 
-		if ( ! empty( $location_headers ) ) {
+		if (! empty($location_headers)) {
 
 			return;
 		}
 
-		if ( ! empty( $this->async_actions ) ) {
+		if (! empty($this->async_actions)) {
 			$user_id = get_current_user_id() ? get_current_user_id() : $this->async_user_id;
 			$actions = $this->async_actions;
 		} else {
 
-			if ( is_user_logged_in() ) {
+			if (is_user_logged_in()) {
 				$user_id = get_current_user_id();
 			} else {
-				$cookie  = filter_input( INPUT_COOKIE, 'wprus_user_pending_async_actions' );
-				$user_id = ( $cookie ) ? $this->decrypt_data( hex2bin( $cookie ) ) : false;
+				$cookie  = filter_input(INPUT_COOKIE, 'wprus_user_pending_async_actions');
+				$user_id = ($cookie) ? $this->decrypt_data(hex2bin($cookie)) : false;
 			}
 
-			$user    = ( $user_id ) ? get_user_by( 'ID', $user_id ) : false;
-			$actions = ( $user ) ? get_user_meta( $user->ID, 'wprus_' . $this->endpoint . '_pending_async_actions', true ) : false;
+			$user    = ($user_id) ? get_user_by('ID', $user_id) : false;
+			$actions = ($user) ? get_user_meta($user->ID, 'wprus_' . $this->endpoint . '_pending_async_actions', true) : false;
 		}
 
-		if ( $actions && $user_id ) {
-			do_action( 'wprus_before_firing_async_actions', $this->endpoint, $actions, $user_id );
+		if ($actions && $user_id) {
+			do_action('wprus_before_firing_async_actions', $this->endpoint, $actions, $user_id);
 
-			if ( $this->needs_redirect() ) {
-				$this->do_async_actions_redirect( $actions, $user_id );
-				do_action( 'wprus_after_firing_async_actions', $this->endpoint, $actions, $user_id );
+			if ($this->needs_redirect()) {
+				$this->do_async_actions_redirect($actions, $user_id);
+				do_action('wprus_after_firing_async_actions', $this->endpoint, $actions, $user_id);
 
 				exit();
 			} else {
-				$this->print_async_actions_markup( $actions, $user_id );
-				do_action( 'wprus_after_firing_async_actions', $this->endpoint, $actions, $user_id );
+				$this->print_async_actions_markup($actions, $user_id);
+				do_action('wprus_after_firing_async_actions', $this->endpoint, $actions, $user_id);
 			}
 		}
 	}
@@ -885,20 +914,21 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $endpoint the endpoint to send the request to - default `null` ; will use the $endpoint attribute value of the instance
 	 * @return array Response data
 	 */
-	public function fire_action( $url, $data, $blocking = false, $timeout = 1, $endpoint = null ) {
-		$data['base_url'] = get_option( 'home' );
+	public function fire_action($url, $data, $blocking = false, $timeout = 1, $endpoint = null)
+	{
+		$data['base_url'] = get_option('home');
 		$endpoint         = $endpoint ? $endpoint : $this->endpoint;
-		$timeout          = apply_filters( 'wprus_fire_action_timeout', $timeout, $endpoint, $url, $blocking );
+		$timeout          = apply_filters('wprus_fire_action_timeout', $timeout, $endpoint, $url, $blocking);
 
-		do_action( 'wprus_before_firing_action', $endpoint, $url, $data );
+		do_action('wprus_before_firing_action', $endpoint, $url, $data);
 
-		$data     = apply_filters( 'wprus_action_data', $data, $endpoint, $url );
+		$data     = apply_filters('wprus_action_data', $data, $endpoint, $url);
 		$body     = array(
-			'wprusdata' => $this->encrypt_data( $data ),
-			'token'     => $this->get_token( $url, $data['username'], 'post' ),
+			'wprusdata' => $this->encrypt_data($data),
+			'token'     => $this->get_token($url, $data['username'], 'post'),
 		);
 		$response = wp_safe_remote_post(
-			trailingslashit( $url ) . 'wprus/' . trailingslashit( $endpoint ),
+			trailingslashit($url) . 'wprus/' . trailingslashit($endpoint),
 			array(
 				'body'     => $body,
 				'blocking' => $blocking,
@@ -906,19 +936,19 @@ abstract class Wprus_Api_Abstract {
 				'timeout'  => $timeout,
 			)
 		);
-		$headers  = wp_remote_retrieve_headers( $response );
+		$headers  = wp_remote_retrieve_headers($response);
 
-		if ( ! empty( $headers ) ) {
+		if (! empty($headers)) {
 			$headers = $headers->getAll();
 		}
 
-		do_action( 'wprus_after_firing_action', $endpoint, $url, $data, $response );
+		do_action('wprus_after_firing_action', $endpoint, $url, $data, $response);
 
 		return array(
 			'headers'          => $headers,
-			'response_code'    => wp_remote_retrieve_response_code( $response ),
-			'response_message' => wp_remote_retrieve_response_message( $response ),
-			'body'             => wp_remote_retrieve_body( $response ),
+			'response_code'    => wp_remote_retrieve_response_code($response),
+			'response_message' => wp_remote_retrieve_response_message($response),
+			'body'             => wp_remote_retrieve_body($response),
 		);
 	}
 
@@ -934,43 +964,44 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $method The request method - `'get'` or `'post'` ; if `'get'`, the token will not be stored ; default `'post'`
 	 * @return string|bool The security token
 	 */
-	protected function get_token( $url, $username, $method = 'post' ) {
-		$user        = get_user_by( 'login', $username );
-		$tokens_info = ( $user ) ? get_user_meta( $user->ID, 'wprus_api_tokens', true ) : null;
-		$tokens_info = ( null !== $tokens_info && ! $tokens_info ) ? array() : $tokens_info;
+	protected function get_token($url, $username, $method = 'post')
+	{
+		$user        = get_user_by('login', $username);
+		$tokens_info = ($user) ? get_user_meta($user->ID, 'wprus_api_tokens', true) : null;
+		$tokens_info = (null !== $tokens_info && ! $tokens_info) ? array() : $tokens_info;
 
-		if ( null === $tokens_info ) {
+		if (null === $tokens_info) {
 
 			return false;
 		}
 
-		if ( isset( $tokens_info[ $url ] ) && 'get' === $method ) {
-			unset( $tokens_info[ $url ] );
+		if (isset($tokens_info[$url]) && 'get' === $method) {
+			unset($tokens_info[$url]);
 		}
 
 		if (
-			! isset( $tokens_info[ $url ] ) ||
-			$tokens_info[ $url ]['expiry'] <= time() - self::TOKEN_EXPIRY_BUFFER
+			! isset($tokens_info[$url]) ||
+			$tokens_info[$url]['expiry'] <= time() - self::TOKEN_EXPIRY_BUFFER
 		) {
 			$payload    = array(
 				'action'   => $this->endpoint,
 				'method'   => $method,
 				'base_url' => $url,
 			);
-			$token_info = $this->get_remote_token( $payload );
+			$token_info = $this->get_remote_token($payload);
 
-			if ( $token_info ) {
-				$tokens_info[ $url ] = $token_info;
-			} elseif ( isset( $tokens_info[ $url ] ) ) {
-				unset( $tokens_info[ $url ] );
+			if ($token_info) {
+				$tokens_info[$url] = $token_info;
+			} elseif (isset($tokens_info[$url])) {
+				unset($tokens_info[$url]);
 			}
 
-			if ( 'post' === $method ) {
-				update_user_meta( $user->ID, 'wprus_api_tokens', $tokens_info );
+			if ('post' === $method) {
+				update_user_meta($user->ID, 'wprus_api_tokens', $tokens_info);
 			}
 		}
 
-		return isset( $tokens_info[ $url ]['nonce'] ) ? $tokens_info[ $url ]['nonce'] : false;
+		return isset($tokens_info[$url]['nonce']) ? $tokens_info[$url]['nonce'] : false;
 	}
 
 	/**
@@ -979,38 +1010,39 @@ abstract class Wprus_Api_Abstract {
 	 * @param array $payload The payload to send to the remote site
 	 * @return array|bool The security token information on success - `false` on failure
 	 */
-	protected function get_remote_token( $payload ) {
+	protected function get_remote_token($payload)
+	{
 
-		if ( self::$can_request_token ) {
-			$timeout = apply_filters( 'wprus_request_token_timeout', 1 );
+		if (self::$can_request_token) {
+			$timeout = apply_filters('wprus_request_token_timeout', 1);
 
 			// translators: %s is the url of the caller
-			Wprus_Logger::log( sprintf( __( 'Renewing token for %s', 'wprus' ), $payload['base_url'] ), 'info', 'db_log' );
+			Wprus_Logger::log(sprintf(__('Renewing token for %s', 'wprus'), $payload['base_url']), 'info', 'db_log');
 		} else {
-			$timeout = apply_filters( 'wprus_request_token_retry_timeout', 5 );
+			$timeout = apply_filters('wprus_request_token_retry_timeout', 5);
 		}
 
 		$token_info = false;
 		$response   = wp_remote_post(
-			trailingslashit( $payload['base_url'] ) . 'wprus/token/',
+			trailingslashit($payload['base_url']) . 'wprus/token/',
 			array(
 				'body'     => array(
-					'wprusdata' => $this->encrypt_data( $payload ),
+					'wprusdata' => $this->encrypt_data($payload),
 				),
 				'compress' => true,
 				'timeout'  => $timeout,
 			)
 		);
 
-		$body = wp_remote_retrieve_body( $response );
+		$body = wp_remote_retrieve_body($response);
 
-		if ( $body && 200 === wp_remote_retrieve_response_code( $response ) ) {
-			$token_info = json_decode( $body, true );
-		} elseif ( self::$can_request_token ) {
+		if ($body && 200 === wp_remote_retrieve_response_code($response)) {
+			$token_info = json_decode($body, true);
+		} elseif (self::$can_request_token) {
 			Wprus_Logger::log(
 				sprintf(
 					// translators: %s is the url of the caller
-					__( 'Failed to renew token for %s - retrying...', 'wprus' ),
+					__('Failed to renew token for %s - retrying...', 'wprus'),
 					$payload['base_url']
 				),
 				'warning',
@@ -1018,21 +1050,21 @@ abstract class Wprus_Api_Abstract {
 			);
 
 			self::$can_request_token = false;
-			$token_info              = $this->get_remote_token( $payload );
+			$token_info              = $this->get_remote_token($payload);
 		}
 
-		if ( ! $token_info && ! self::$can_request_token ) {
+		if (! $token_info && ! self::$can_request_token) {
 			Wprus_Logger::log(
 				sprintf(
 					// translators: %s is the url of the caller
-					__( 'Failed to renew token for %s', 'wprus' ),
+					__('Failed to renew token for %s', 'wprus'),
 					$payload['base_url']
 				),
 				'alert',
 				'db_log'
 			);
 
-			if ( is_wp_error( $response ) ) {
+			if (is_wp_error($response)) {
 				Wprus_Logger::log(
 					array(
 						'message' => 'A WordPress error was triggered: ',
@@ -1042,9 +1074,9 @@ abstract class Wprus_Api_Abstract {
 					'db_log'
 				);
 			} else {
-				$headers = wp_remote_retrieve_headers( $response );
+				$headers = wp_remote_retrieve_headers($response);
 
-				if ( ! empty( $headers ) ) {
+				if (! empty($headers)) {
 					$headers = $headers->getAll();
 				}
 
@@ -1053,9 +1085,9 @@ abstract class Wprus_Api_Abstract {
 						'message' => 'Response data received from the remote site: ',
 						array(
 							'headers'          => $headers,
-							'response_code'    => wp_remote_retrieve_response_code( $response ),
-							'response_message' => wp_remote_retrieve_response_message( $response ),
-							'body'             => wp_remote_retrieve_body( $response ),
+							'response_code'    => wp_remote_retrieve_response_code($response),
+							'response_message' => wp_remote_retrieve_response_message($response),
+							'body'             => wp_remote_retrieve_body($response),
 						),
 					),
 					'info',
@@ -1075,12 +1107,13 @@ abstract class Wprus_Api_Abstract {
 	 * @param int $expire The time the cookie expires ; this is a Unix timestamp so is in number of seconds since the epoch - default `0`
 	 * @return array|bool The security token information on success - `false` on failure
 	 */
-	protected function setcookie( $name, $value, $expire = 0 ) {
+	protected function setcookie($name, $value, $expire = 0)
+	{
 
-		if ( ! headers_sent( $file, $line ) ) {
+		if (! headers_sent($file, $line)) {
 
-			if ( PHP_VERSION_ID < 70300 ) {
-				setcookie( $name, $value, $expire, COOKIEPATH ? COOKIEPATH . '; SameSite=None' : '/; SameSite=None', COOKIE_DOMAIN, true, false );
+			if (PHP_VERSION_ID < 70300) {
+				setcookie($name, $value, $expire, COOKIEPATH ? COOKIEPATH . '; SameSite=None' : '/; SameSite=None', COOKIE_DOMAIN, true, false);
 			} else {
 				setcookie(
 					$name,
@@ -1095,9 +1128,9 @@ abstract class Wprus_Api_Abstract {
 					)
 				);
 			}
-		} elseif ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		} elseif (defined('WP_DEBUG') && WP_DEBUG) {
 			trigger_error(  // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_trigger_error
-				esc_html( $name . 'cookie cannot be set - headers already sent by ' . $file . 'on line' . $line ),
+				esc_html($name . 'cookie cannot be set - headers already sent by ' . $file . 'on line' . $line),
 				E_USER_NOTICE
 			);
 		}
@@ -1108,7 +1141,8 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return mixed The data
 	 */
-	protected function get_data_get() {
+	protected function get_data_get()
+	{
 		$data_get = $this->data['get'];
 
 		return $data_get;
@@ -1119,7 +1153,8 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return mixed The data
 	 */
-	protected function get_data_post() {
+	protected function get_data_post()
+	{
 		$data_post = $this->data['post'];
 
 		return $data_post;
@@ -1130,18 +1165,19 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return array The data
 	 */
-	protected function get_data() {
+	protected function get_data()
+	{
 		$data = array();
 
-		if ( ! empty( $this->data['get'] ) && is_array( $this->data['get'] ) ) {
-			$data = array_merge( $data, $this->data['get'] );
-		} elseif ( ! empty( $this->data['get'] ) ) {
+		if (! empty($this->data['get']) && is_array($this->data['get'])) {
+			$data = array_merge($data, $this->data['get']);
+		} elseif (! empty($this->data['get'])) {
 			$data[] = $this->data['get'];
 		}
 
-		if ( ! empty( $this->data['post'] ) && is_array( $this->data['post'] ) ) {
-			$data = array_merge( $data, $this->data['post'] );
-		} elseif ( ! empty( $this->data['post'] ) ) {
+		if (! empty($this->data['post']) && is_array($this->data['post'])) {
+			$data = array_merge($data, $this->data['post']);
+		} elseif (! empty($this->data['post'])) {
 			$data[] = $this->data['post'];
 		}
 
@@ -1153,12 +1189,13 @@ abstract class Wprus_Api_Abstract {
 	 * @param array The data to validate
 	 * @return bool Whether the data is valid
 	 */
-	protected function validate( $data ) {
+	protected function validate($data)
+	{
 		$valid =
-			isset( $data['username'] ) &&
-			! empty( $data['username'] ) &&
-			isset( $data['base_url'] ) &&
-			! empty( $data['base_url'] );
+			isset($data['username']) &&
+			! empty($data['username']) &&
+			isset($data['base_url']) &&
+			! empty($data['base_url']);
 
 		return $valid;
 	}
@@ -1168,7 +1205,8 @@ abstract class Wprus_Api_Abstract {
 	 * @param array The data to sanitize
 	 * @return bool The sanitized data
 	 */
-	protected function sanitize( $data ) {
+	protected function sanitize($data)
+	{
 		return $data;
 	}
 
@@ -1177,7 +1215,8 @@ abstract class Wprus_Api_Abstract {
 	 *
 	 * @return array The instance's endpoint entries
 	 */
-	protected function get_endpoints() {
+	protected function get_endpoints()
+	{
 		return array(
 			$this->endpoint => $this->endpoint,
 		);
@@ -1189,13 +1228,14 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $ajax_fallback The URL to fallback to in case we're in an ajax request ; default false, which will result to home_url()
 	 * @return string the current URL
 	 */
-	protected function get_redirect_url( $ajax_fallback = false ) {
-		$parts = wp_parse_url( home_url() );
-		$url   = $parts['scheme'] . '://' . $parts['host'] . add_query_arg( null, null );
+	protected function get_redirect_url($ajax_fallback = false)
+	{
+		$parts = wp_parse_url(home_url());
+		$url   = $parts['scheme'] . '://' . $parts['host'] . add_query_arg(null, null);
 
-		if ( false !== strpos( $url, 'admin-ajax.php' ) ) {
-			$ajax_fallback = ( $ajax_fallback ) ? $ajax_fallback : home_url();
-			$url           = apply_filters( 'wprus_get_redirect_url_ajax', $ajax_fallback, $this->endpoint );
+		if (false !== strpos($url, 'admin-ajax.php')) {
+			$ajax_fallback = ($ajax_fallback) ? $ajax_fallback : home_url();
+			$url           = apply_filters('wprus_get_redirect_url_ajax', $ajax_fallback, $this->endpoint);
 		}
 
 		return $url;
@@ -1207,27 +1247,28 @@ abstract class Wprus_Api_Abstract {
 	 * @param array $actions The async actions to fire
 	 * @param int $user_id The ID of the user for which the actions are to be fired
 	 */
-	protected function do_async_actions_redirect( $actions, $user_id ) {
-		$data                 = array_pop( $actions );
+	protected function do_async_actions_redirect($actions, $user_id)
+	{
+		$data                 = array_pop($actions);
 		$data['callback_url'] = $this->get_redirect_url();
-		$url                  = trailingslashit( $data['url'] );
-		$async_url            = $url . 'wprus/' . trailingslashit( $this->endpoint );
+		$url                  = trailingslashit($data['url']);
+		$async_url            = $url . 'wprus/' . trailingslashit($this->endpoint);
 
-		unset( $data['url'] );
+		unset($data['url']);
 
-		$data      = apply_filters( 'wprus_action_data', $data, $this->endpoint, $url );
+		$data      = apply_filters('wprus_action_data', $data, $this->endpoint, $url);
 		$args      = array(
-			'wprusdata' => rawurlencode( $this->encrypt_data( $data ) ),
-			'token'     => rawurlencode( $this->get_token( $url, $data['username'], 'get' ) ),
+			'wprusdata' => rawurlencode($this->encrypt_data($data)),
+			'token'     => rawurlencode($this->get_token($url, $data['username'], 'get')),
 		);
-		$async_url = add_query_arg( $args, $async_url );
-		$output    = $this->get_async_action_output( $async_url, true );
+		$async_url = add_query_arg($args, $async_url);
+		$output    = $this->get_async_action_output($async_url, true);
 
-		update_user_meta( $user_id, 'wprus_' . $this->endpoint . '_pending_async_actions', $actions );
+		update_user_meta($user_id, 'wprus_' . $this->endpoint . '_pending_async_actions', $actions);
 		Wprus_Logger::log(
 			sprintf(
 				// translators: %1$s is the url of the endpoint ; %2$s is the action called
-				__( 'Ready to redirect to %1$s async URL in %2$s', 'wprus' ),
+				__('Ready to redirect to %1$s async URL in %2$s', 'wprus'),
 				$async_url,
 				current_filter()
 			),
@@ -1235,8 +1276,8 @@ abstract class Wprus_Api_Abstract {
 			'db_log'
 		);
 
-		if ( $this->is_silent_async_action_redirect() ) {
-			wp_redirect( $async_url, 303 ); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
+		if ($this->is_silent_async_action_redirect()) {
+			wp_redirect($async_url, 303); // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect
 		}
 
 		echo $output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -1248,27 +1289,28 @@ abstract class Wprus_Api_Abstract {
 	 * @param array $actions The async actions to fire
 	 * @param int $user_id The ID of the user for which the actions are to be fired
 	 */
-	protected function print_async_actions_markup( $actions, $user_id ) {
+	protected function print_async_actions_markup($actions, $user_id)
+	{
 		$output = '';
 
-		foreach ( $actions as $action_index => $data ) {
-			$url       = trailingslashit( $data['url'] );
-			$async_url = $url . 'wprus/' . trailingslashit( $this->endpoint );
+		foreach ($actions as $action_index => $data) {
+			$url       = trailingslashit($data['url']);
+			$async_url = $url . 'wprus/' . trailingslashit($this->endpoint);
 
-			unset( $data['url'] );
+			unset($data['url']);
 
-			$data      = apply_filters( 'wprus_action_data', $data, $this->endpoint, $url );
+			$data      = apply_filters('wprus_action_data', $data, $this->endpoint, $url);
 			$args      = array(
-				'wprusdata' => rawurlencode( $this->encrypt_data( $data ) ),
-				'token'     => rawurlencode( $this->get_token( $url, $data['username'], 'get' ) ),
+				'wprusdata' => rawurlencode($this->encrypt_data($data)),
+				'token'     => rawurlencode($this->get_token($url, $data['username'], 'get')),
 			);
-			$async_url = add_query_arg( $args, $async_url );
-			$output   .= $this->get_async_action_output( $async_url );
+			$async_url = add_query_arg($args, $async_url);
+			$output   .= $this->get_async_action_output($async_url);
 
 			Wprus_Logger::log(
 				sprintf(
 					// translators: %1$s is the url of the script ; %2$s is the action called
-					__( 'Added %1$s async URL in %2$s', 'wprus' ),
+					__('Added %1$s async URL in %2$s', 'wprus'),
 					$async_url,
 					current_filter()
 				),
@@ -1278,8 +1320,8 @@ abstract class Wprus_Api_Abstract {
 		}
 
 		echo $output; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		do_action( 'wprus_after_firing_async_actions', $this->endpoint, $actions, $user_id );
-		delete_user_meta( $user_id, 'wprus_' . $this->endpoint . '_pending_async_actions' );
+		do_action('wprus_after_firing_async_actions', $this->endpoint, $actions, $user_id);
+		delete_user_meta($user_id, 'wprus_' . $this->endpoint . '_pending_async_actions');
 
 		$this->async_actions = array();
 	}
@@ -1290,15 +1332,16 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $async_url The URL of an action
 	 * @param bool $redirect Whether the page needs to be redirected - if true, gets the fallback output for javascript redirection ; if false, gets the iframe used to perform the action ; default false
 	 */
-	protected function get_async_action_output( $async_url, $redirect = false ) {
+	protected function get_async_action_output($async_url, $redirect = false)
+	{
 
-		if ( ! $redirect ) {
+		if (! $redirect) {
 			return '<iframe style="display:none" src="' . $async_url . '"></iframe>'; // phpcs:ignor
 		}
 
 		ob_start();
 
-		wprus_get_template( 'redirect-processing.php' );
+		wprus_get_template('redirect-processing.php');
 
 		$output  = ob_get_clean();
 		$search  = array(
@@ -1313,9 +1356,12 @@ abstract class Wprus_Api_Abstract {
 			'\\1',
 			'',
 		);
-		$output  = preg_replace( $search, $replace, $output );
+		$output  = preg_replace($search, $replace, $output);
 
 		ob_start();
+
+		error_log("hello");
+		error_log($output);
 
 		wprus_get_template(
 			'redirect-processing-script.php',
@@ -1337,19 +1383,20 @@ abstract class Wprus_Api_Abstract {
 	 * @param string $range The CIDR
 	 * @return bool True if the ip is in range, false otherwise
 	 */
-	protected function cidr_match( $ip, $range ) {
-		list ( $subnet, $bits ) = explode( '/', $range );
-		$ip                     = ip2long( $ip );
-		$subnet                 = ip2long( $subnet );
+	protected function cidr_match($ip, $range)
+	{
+		list($subnet, $bits) = explode('/', $range);
+		$ip                     = ip2long($ip);
+		$subnet                 = ip2long($subnet);
 
-		if ( ! $ip || ! $subnet || ! $bits ) {
+		if (! $ip || ! $subnet || ! $bits) {
 
 			return false;
 		}
 
-		$mask    = -1 << ( 32 - $bits );
+		$mask    = -1 << (32 - $bits);
 		$subnet &= $mask; // in case the supplied subnet was not correctly aligned
 
-		return ( $ip & $mask ) === $subnet;
+		return ($ip & $mask) === $subnet;
 	}
 }

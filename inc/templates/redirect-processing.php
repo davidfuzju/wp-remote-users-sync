@@ -101,8 +101,8 @@
 					text += '.';
 				}
 				messageElement.textContent = text;
-				dots = (dots + 1) % 4; // Cycle through 0, 1, 2, 3
-			}, 1000); // Change every second
+				dots = (dots + 1) % 4;
+			}, 1000);
 		});
 	</script>
 </body>
