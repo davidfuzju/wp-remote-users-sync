@@ -96,7 +96,7 @@
 			var messageElement = document.querySelector('.wprus-wait-message');
 			var dots = 0;
 			setInterval(function() {
-				var text = <?php esc_html_e('Processing', 'wprus'); ?> < /div>;
+				var text = '<?php esc_html_e('Processing', 'wprus'); ?>';
 				for (var i = 0; i < dots; i++) {
 					text += '.';
 				}
