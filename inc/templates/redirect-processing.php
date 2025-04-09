@@ -94,14 +94,17 @@
 	<script type="text/javascript">
 		document.addEventListener('DOMContentLoaded', function() {
 			var messageElement = document.querySelector('.wprus-wait-message');
-			var dots = 0;
+			var messages = [
+				"<?php echo esc_js(__('Processing_text_1', 'wprus')); ?>",
+				"<?php echo esc_js(__('Processing_text_2', 'wprus')); ?>",
+				"<?php echo esc_js(__('Processing_text_3', 'wprus')); ?>",
+				"<?php echo esc_js(__('Processing_text_4', 'wprus')); ?>"
+			];
+			var currentIndex = 0;
+			
 			setInterval(function() {
-				var text = "<?php echo esc_js(__('Processing', 'wprus')); ?>";
-				for (var i = 0; i < dots; i++) {
-					text += '.';
-				}
-				messageElement.textContent = text;
-				dots = (dots + 1) % 4;
+				messageElement.textContent = messages[currentIndex];
+				currentIndex = (currentIndex + 1) % messages.length;
 			}, 500);
 		});
 	</script>
