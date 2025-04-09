@@ -95,10 +95,10 @@
 		document.addEventListener('DOMContentLoaded', function() {
 			var messageElement = document.querySelector('.wprus-wait-message');
 			var messages = [
-				"<?php echo esc_js(__('Processing_text_1', 'wprus')); ?>",
-				"<?php echo esc_js(__('Processing_text_2', 'wprus')); ?>",
-				"<?php echo esc_js(__('Processing_text_3', 'wprus')); ?>",
-				"<?php echo esc_js(__('Processing_text_4', 'wprus')); ?>"
+				"<?php echo esc_js(__('Page Loading', 'wprus')); ?>",
+				"<?php echo esc_js(__('Data Verification', 'wprus')); ?>",
+				"<?php echo esc_js(__('Secure Encryption', 'wprus')); ?>",
+				"<?php echo esc_js(__('Redirecting Now', 'wprus')); ?>"
 			];
 			var currentIndex = 0;
 			
