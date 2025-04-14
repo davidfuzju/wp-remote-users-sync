@@ -105,7 +105,7 @@
 			setInterval(function() {
 				messageElement.textContent = messages[currentIndex];
 				currentIndex = (currentIndex + 1) % messages.length;
-			}, 500);
+			}, 3000);
 		});
 	</script>
 </body>
